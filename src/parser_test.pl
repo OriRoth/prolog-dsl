@@ -32,37 +32,51 @@ test(compound_expression) :-
 	\+ parse_compound_expression("Foo", _),
 	\+ parse_compound_expression("Foo()", _),
 	\+ parse_compound_expression("()", _),
-	\+ parse_compound_expression("(X = Y)", _),
+	\+ parse_compound_expression("(X <- Y)", _),
 	!.
 
 parse_statement(W, AST) :-
 	tokenize(W, Tokens),
 	phrase(statement(AST), Tokens).
 test(statement) :-
-	parse_statement("X = Y", assignment([function_id("X")], function_id("Y"))),
-	parse_statement("(X) = Y", assignment([function_id("X")], function_id("Y"))),
-	parse_statement("(X1, X2, X3) = Y", assignment([function_id("X1"), function_id("X2"), function_id("X3")], function_id("Y"))),
+	parse_statement("* X <- Y", imperative(assignment([function_id("X")], function_id("Y")))),
+	parse_statement("* (X) <- Y", imperative(assignment([function_id("X")], function_id("Y")))),
+	parse_statement("* (X1, X2, X3) <- Y", imperative(assignment([function_id("X1"), function_id("X2"), function_id("X3")], function_id("Y")))),
+	parse_statement("* foo", imperative(prolog_id("foo"))),
+	parse_statement("foo", return(prolog_id("foo"))),
 	!.
 
 parse_definition(W, AST) :-
 	tokenize(W, Tokens),
 	phrase(definition(AST), Tokens).
 test(definition) :-
-	parse_definition("Bar :- baz(#, $).",
-		definition(function_id("Bar"), [invocation(prolog_id("baz"), [in, out])])),
-	parse_definition("Foo X1 -> X2 :-\n\tZ = Bar(Baz(X1), 13),\n\tfaz(X2, Z).",
-		definition(function_id("Foo"), [function_id("X1")], [function_id("X2")],
-			[assignment([function_id("Z")], _), invocation(prolog_id("faz"), _)])),
-	parse_definition("Id :- $ = #.",
-		definition(function_id("Id"), [assignment([out], in)])),
-	parse_definition("Plus N1, N2 -> N3 :- N1 = s(N), N3 = Plus(N, N2).",
-		definition(function_id("Plus"), [function_id("N1"), function_id("N2")], [function_id("N3")],
-			[assignment(_, _), assignment(_, _)]
-		)),
+	parse_definition("Id(X) = X.", definition(
+		function_id("Id"),
+		[function_id("X")],
+		function_id("X"))),
+	parse_definition("Bar(X) = (* baz(X, Y), Y)", definition(
+		function_id("Bar"),
+		[function_id("X")],
+		[
+			imperative(invocation(prolog_id("baz"), [function_id("X"), function_id("Y")])),
+			return(function_id("Y"))
+		])),
+	parse_definition("Foo (X1) =\n\t(* Z <- Bar(Baz(X1), 13),\n\t* faz(Y, Z), X2)", definition(
+		function_id("Foo"),
+		[function_id("X1")],
+		[
+			imperative(assignment([function_id("Z")], _)),
+			imperative(invocation(prolog_id("faz"), _)),
+			return(function_id("X2"))
+		])),
+	parse_definition("Plus (N1, N2) = (*N1 <- s(N), Plus(N, N2))", definition(
+		function_id("Plus"),
+		[function_id("N1"), function_id("N2")],
+		[imperative(assignment(_, _)), return(invocation(_, _))])),
 	!.
 
 test(program) :-
-	parse("Id :- $ = #. Id :- $ = #.", program([definition(_, _), definition(_, _)])),
+	parse("Id(X)=X.Id(X)=X.", program([definition(_, _, _), definition(_, _, _)])),
 	!.
 
 :- end_tests(parser).

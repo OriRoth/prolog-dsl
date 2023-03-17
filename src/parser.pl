@@ -17,8 +17,6 @@ literal(number(N)) --> [number(N)].
 literal(string(N)) --> [string(N)].
 literal(prolog_id(I)) --> [prolog_id(I)].
 
-variable(in) --> [in].
-variable(out) --> [out].
 variable(function_id(I)) --> [function_id(I)].
 
 atomic_expression(X) --> literal(X).
@@ -51,12 +49,6 @@ tuple(tuple([X | Xs])) -->
 	expressions(Xs),
 	[operator(")")].
 
-variables([V]) --> variable(V).
-variables([V | Vs]) -->
-	variable(V),
-	[operator(",")],
-	variables(Vs).
-
 compound_expression(X) --> invocation(X).
 compound_expression(X) --> parenthesized(X).
 compound_expression(X) --> tuple(X).
@@ -78,20 +70,34 @@ expressions([X | Xs]) -->
  * Definitions *
  ***************/
 
+variables([V]) --> variable(V).
+variables([V | Vs]) -->
+	variable(V),
+	[operator(",")],
+	variables(Vs).
+
 assignment(assignment([V], X)) -->
 	variable(V),
-	[operator("=")],
+	[operator("<-")],
 	expression(X).
 assignment(assignment(Vs, X)) -->
 	[operator("(")],
 	variables(Vs),
 	[operator(")")],
-	[operator("=")],
+	[operator("<-")],
 	expression(X).
 
-statement(prolog_id(I)) --> [prolog_id(I)].
-statement(I) --> invocation(I).
-statement(A) --> assignment(A).
+imperative_statement(imperative(Body)) -->
+	[operator("*")],
+	imperative_statement_body(Body).
+imperative_statement_body(prolog_id(I)) --> [prolog_id(I)].
+imperative_statement_body(I) --> invocation(I).
+imperative_statement_body(A) --> assignment(A).
+
+return_statement(return(E)) --> expression(E).
+
+statement(S) --> imperative_statement(S).
+statement(S) --> return_statement(S).
 
 statements([S]) --> statement(S).
 statements([S | Ss]) -->
@@ -99,23 +105,20 @@ statements([S | Ss]) -->
 	[operator(",")],
 	statements(Ss).
 
-implicit_definition(definition(Name, Body)) -->
+definition(definition(Name, Inputs, Body)) -->
 	variable(Name),
-	[operator(":-")],
-	statements(Body),
-	[operator(".")].
-
-explicit_definition(definition(Name, Inputs, Outputs, Body)) -->
-	variable(Name),
+	[operator("(")],
 	variables(Inputs),
-	[operator("->")],
-	variables(Outputs),
-	[operator(":-")],
-	statements(Body),
-	[operator(".")].
-
-definition(D) --> implicit_definition(D).
-definition(D) --> explicit_definition(D).
+	[operator(")")],
+	[operator("=")],
+	definition_body(Body).
+definition_body(Expression) -->
+	expression(Expression),
+	[operator(".")], !.
+definition_body(Statements) -->
+	[operator("(")],
+	statements(Statements),
+	[operator(")")].
 
 /***********
  * Program *

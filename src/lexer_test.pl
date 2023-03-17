@@ -27,23 +27,13 @@ test(skip) :-
 	\+ phrase(skip, [' ', ' ', '/', '*', '*', '/', ' ', '/', '*', '/', '*', '*', '/', '*', '/']),
 	!.
 
-test(in) :-
-	phrase(in(in), ['#']),
-	\+ phrase(in(_), ['#', ' ']),
-	!.
-
-test(out) :-
-	phrase(out(out), ['$']),
-	\+ phrase(out(_), ['$', ' ']),
-	!.
-
 test(operator) :-
 	phrase(operator(operator("(")), ['(']),
 	phrase(operator(operator(")")), [')']),
-	phrase(operator(operator(":-")), [':', '-']),
-	phrase(operator(operator("->")), ['-', '>']),
+	phrase(operator(operator("<-")), ['<', '-']),
 	phrase(operator(operator(",")), [',']),
 	phrase(operator(operator(".")), ['.']),
+	phrase(operator(operator("*")), ['*']),
 	\+ phrase(operator(_), ['(', ')']),
 	\+ phrase(operator(_), ['.', '.', '.']),
 	!.

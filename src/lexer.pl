@@ -2,8 +2,6 @@
 	white_space/2,
 	comment/2,
 	skip/2,
-	in/3,
-	out/3,
 	operator/3,
 	number/3,
 	string/3,
@@ -48,23 +46,15 @@ skip --> [].
 skip --> (white_space | comment), skip.
 skip_non_empty --> (white_space | comment), skip.
 
-/**********
- * In/Out *
- **********/
- 
-in(in) --> ['#'].
-
-out(out) --> ['$'].
-
 /*************
  * Operators *
  *************/
  
 operator(operator("(")) --> ['('].
 operator(operator(")")) --> [')'].
-operator(operator("->")) --> ['-'], ['>'].
-operator(operator(":-")) --> [':'], ['-'].
+operator(operator("<-")) --> ['<'], ['-'].
 operator(operator(".")) --> ['.'].
+operator(operator("*")) --> ['*'].
 operator(operator(",")) --> [','].
 operator(operator("=")) --> ['='].
 
@@ -111,9 +101,7 @@ prolog_id(prolog_id(Identifier)) --> sequence(Chars),
  **********/
  
 token_no_operator(Token) -->
-	  in(Token)
-	| out(Token)
-	| number(Token)
+	  number(Token)
 	| string(Token)
 	| function_id(Token)
 	| prolog_id(Token).
