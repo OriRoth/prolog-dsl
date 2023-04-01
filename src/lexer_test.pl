@@ -30,12 +30,18 @@ test(skip) :-
 test(operator) :-
 	phrase(operator(operator("(")), ['(']),
 	phrase(operator(operator(")")), [')']),
-	phrase(operator(operator("<-")), ['<', '-']),
+	phrase(operator(operator("{")), ['{']),
+	phrase(operator(operator("}")), ['}']),
+	phrase(operator(operator(":-")), [':', '-']),
 	phrase(operator(operator(",")), [',']),
 	phrase(operator(operator(".")), ['.']),
-	phrase(operator(operator("*")), ['*']),
+	phrase(operator(operator("=")), ['=']),
 	\+ phrase(operator(_), ['(', ')']),
 	\+ phrase(operator(_), ['.', '.', '.']),
+	!.
+
+test(in) :-
+	phrase(in(in),['#']),
 	!.
 
 test(number) :-
