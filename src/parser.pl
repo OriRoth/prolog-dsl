@@ -9,9 +9,9 @@
 ]).
 :- use_module(lexer).
 
-/*********************
+/**********************
  * Atomic Expressions *
- *********************/
+ **********************/
 
 literal(number(N)) --> [number(N)].
 literal(string(N)) --> [string(N)].
@@ -66,9 +66,9 @@ expressions([X | Xs]) -->
 	[operator(",")],
 	expressions(Xs).
 
-/***************
- * Definitions *
- ***************/
+/**************
+ * Statements *
+ **************/
 
 variables([V]) --> variable(V).
 variables([V | Vs]) -->
@@ -78,25 +78,33 @@ variables([V | Vs]) -->
 
 assignment(assignment([V], X)) -->
 	variable(V),
-	[operator("<-")],
+	[operator("=")],
 	expression(X).
 assignment(assignment(Vs, X)) -->
 	[operator("(")],
 	variables(Vs),
 	[operator(")")],
-	[operator("<-")],
+	[operator("=")],
 	expression(X).
 
-imperative_statement(imperative(Body)) -->
-	[operator("*")],
-	imperative_statement_body(Body).
-imperative_statement_body(prolog_id(I)) --> [prolog_id(I)].
-imperative_statement_body(I) --> invocation(I).
-imperative_statement_body(A) --> assignment(A).
+imperative_statement(prolog_id(I)) --> [prolog_id(I)].
+imperative_statement(I) --> invocation(I).
+imperative_statement(A) --> assignment(A).
+
+imperative_statements([S]) --> imperative_statement(S).
+imperative_statements([S | Ss]) -->
+	imperative_statement(S),
+	[operator(",")],
+	imperative_statements(Ss).
+
+imperative_block(imperative(Ss)) -->
+	[operator("{")],
+	imperative_statements(Ss),
+	[operator("}")].
 
 return_statement(return(E)) --> expression(E).
 
-statement(S) --> imperative_statement(S).
+statement(Ss) --> imperative_block(Ss).
 statement(S) --> return_statement(S).
 
 statements([S]) --> statement(S).
@@ -105,20 +113,18 @@ statements([S | Ss]) -->
 	[operator(",")],
 	statements(Ss).
 
+/***************
+ * Definitions *
+ ***************/
+
 definition(definition(Name, Inputs, Body)) -->
 	variable(Name),
 	[operator("(")],
 	variables(Inputs),
 	[operator(")")],
-	[operator("=")],
-	definition_body(Body).
-definition_body(Expression) -->
-	expression(Expression),
-	[operator(".")], !.
-definition_body(Statements) -->
-	[operator("(")],
-	statements(Statements),
-	[operator(")")].
+	[operator(":-")],
+	statements(Body),
+	[operator(".")].
 
 /***********
  * Program *

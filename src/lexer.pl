@@ -3,7 +3,6 @@
 	comment/2,
 	skip/2,
 	operator/3,
-	in/3,
 	number/3,
 	string/3,
 	function_id/3,
@@ -64,8 +63,6 @@ operator(operator("=")) --> ['='].
  * Literals *
  ************/
 
-in(in) --> ['#'].
-
 number(number(Number)) --> sequence(Chars),
 	{
 		string_chars(String, Chars),
@@ -105,8 +102,7 @@ prolog_id(prolog_id(Identifier)) --> sequence(Chars),
  **********/
  
 token_no_operator(Token) -->
-	  in(Token)
-	| number(Token)
+	  number(Token)
 	| string(Token)
 	| function_id(Token)
 	| prolog_id(Token).

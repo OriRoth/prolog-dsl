@@ -40,10 +40,6 @@ test(operator) :-
 	\+ phrase(operator(_), ['.', '.', '.']),
 	!.
 
-test(in) :-
-	phrase(in(in),['#']),
-	!.
-
 test(number) :-
 	phrase(number(number(0)),['0']),
 	phrase(number(number(100)),['1', '0', '0']),
