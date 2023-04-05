@@ -75,6 +75,10 @@ test(definition) :-
 		function_id("Plus"),
 		[function_id("N1"), function_id("N2")],
 		[imperative([assignment(_, _)]), return(invocation(_, _))])),
+	parse_definition("F(X):-{X = 0}.", definition(_, _, _)),
+	parse_definition("Plus(N1, N2) :- {N1 = 0}, N2.", definition(_, _, _)),
+	\+ parse_definition("F(X):-{}.", definition(_, _, _)),
+	\+ parse_definition("F(X):-.", definition(_, _, _)),
 	!.
 
 test(program) :-

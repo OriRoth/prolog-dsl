@@ -32,8 +32,11 @@ get_function_names([definition(function_id(Name), _, _) | Ds], Out) :-
 
 transpile_program(program(Definitions), Out) :-
 	get_function_names(Definitions, Function_Names),
-	transpile_definitions(Definitions, Function_Names, Definitions_Out),
-	join(Definitions_Out, "\n", Out).
+	transpile_definitions(Definitions, Function_Names, Definitions_Out, Apply_Out),
+	join(Definitions_Out, "\n", Out1),
+	string_concat(Out1, "\n", Out2),
+	join(Apply_Out, "\n", Out3),
+	string_concat(Out2, Out3, Out).
 
 transpile_to_prolog(W, Out) :-
 	parse(W, AST),
@@ -44,10 +47,10 @@ transpile_to_prolog(W, Out) :-
  * Definitions *
  ***************/
 
-transpile_definitions([], _, []).
-transpile_definitions([D | Ds], Function_Names, [Out1 | Out2]) :-
-	transpile_definition(D, Function_Names, Out1),
-	transpile_definitions(Ds, Function_Names, Out2).
+transpile_definitions([], _, [], []).
+transpile_definitions([D | Ds], Function_Names, [Out1 | Out2], [Apply_Out1 | Apply_Out2]) :-
+	transpile_definition(D, Function_Names, Out1, Apply_Out1),
+	transpile_definitions(Ds, Function_Names, Out2, Apply_Out2).
 
 transpile_variable(function_id(I), I).
 
@@ -59,33 +62,31 @@ transpile_variables([V | Vs], Out) :-
 	transpile_variables(Vs, Out3),
 	string_concat(Out2, Out3, Out).
 
-transpile_definition(definition(function_id(Name), Inputs, Body), Function_Names, Out) :-
-	function_name(Name, Function_Name),
-	string_concat("apply_fun(", Function_Name, Out1),
-	string_concat(Out1, ",", Out2),
-	transpile_variables(Inputs, Out3),
-	string_concat(Out2, Out3, Out4),
-	string_concat(Out4, ",(", Out5),
+transpile_definition(definition(function_id(Name), Inputs, Body), Function_Names, Out, Apply_Out) :-
+	%
+	transpile_variables(Inputs, Out1),
+	string_concat(Out1, ",(", Out2),
 	transpile_body(Body, Function_Names, Body_Out, Return_Vars),
-	join(Return_Vars, ",", Out6),
-	string_concat(Out5, Out6, Out7),
-	string_concat(Out7, "))", Out8),
+	join(Return_Vars, ",", Out3),
+	string_concat(Out2, Out3, Out4),
+	string_concat(Out4, "))", Out5),
 	(Body_Out = "." ->
-		Out9 = Out8
+		Out6 = Out5
 		;
-		string_concat(Out8, ":-", Out9)
+		string_concat(Out5, ":-", Out6)
 	),
-	string_concat(Out9, Body_Out, Out).
+	string_concat(Out6, Body_Out, Out7),
+	%
+	function_name(Name, Function_Name),
+	string_concat(Function_Name, "(", Out8),
+	string_concat(Out8, Out7, Out),
+	%
+	string_concat("apply_fun(", Function_Name, Out9),
+	string_concat(Out9, ",", Out10),
+	string_concat(Out10, Out7, Apply_Out).
 
 transpile_body(Statements, Function_Names, Out, Return_Vars) :-
-	is_list(Statements), !,
 	transpile_statements(Statements, Function_Names, 1, Out1, Return_Vars),
-	join(Out1, ",", Out2),
-	string_concat(Out2, ".", Out).
-
-transpile_body(Expression, Function_Names, Out, Return_Vars) :-
-	\+ is_list(Expression), !,
-	transpile_statement(return(Expression), Function_Names, 1, Out1, _, Return_Vars),
 	join(Out1, ",", Out2),
 	string_concat(Out2, ".", Out).
 
@@ -106,22 +107,30 @@ transpile_function_id_or_variable(I, Function_Names, Out) :-
 	member(I, Function_Names), !,
 	function_name(I, Out).
 
-transpile_statement(imperative(prolog_id(I)), _, Temp_Counter, [I], Temp_Counter, []).
-transpile_statement(imperative(assignment(Vs, X)), Function_Names, Temp_Counter, Out, Temp_Counter_Out, []) :-
+transpile_statement(return(Expression), Function_Names, Temp_Counter, Statements_Out, Temp_Counter_Out, [Expression_Out]) :-
+	transpile_expression(Expression, Function_Names, Temp_Counter, Statements_Out, Expression_Out, Temp_Counter_Out).
+
+transpile_statement(imperative([]), _, Temp_Counter, [], Temp_Counter, []).
+transpile_statement(imperative([S | Ss]), Function_Names, Temp_Counter, Out, Temp_Counter_Out, []) :-
+	transpile_imerative_statement(S, Function_Names, Temp_Counter, Out1, Temp_Counter1),
+	transpile_statement(imperative(Ss), Function_Names, Temp_Counter1, Out2, Temp_Counter_Out, _),
+	append(Out1, Out2, Out).
+transpile_imerative_statement(prolog_id(I), _, Temp_Counter, [I], Temp_Counter).
+transpile_imerative_statement(assignment(Vs, X), Function_Names, Temp_Counter, Out, Temp_Counter_Out) :-
 	transpile_variables(Vs, Out1),
 	string_concat("(", Out1, Out2),
 	string_concat(Out2, ")=", Out3),
 	transpile_expression(X, Function_Names, Temp_Counter, Statements_Out, Expression_Out, Temp_Counter_Out),
 	string_concat(Out3, Expression_Out, Out4),
 	append(Statements_Out, [Out4], Out).
-transpile_statement(imperative(invocation(prolog_id(I), Arguments)), Function_Names, Temp_Counter, Out, Temp_Counter_Out, []) :-
+transpile_imerative_statement(invocation(prolog_id(I), Arguments), Function_Names, Temp_Counter, Out, Temp_Counter_Out) :-
 	string_concat(I, "(", Out1),
 	transpile_expressions(Arguments, Function_Names, Temp_Counter, Statements_Out, Arguments_Out, Temp_Counter_Out),
 	join(Arguments_Out, ",", Out2),
 	string_concat(Out1, Out2, Out3),
 	string_concat(Out3, ")", Out4),
 	append(Statements_Out, [Out4], Out).
-transpile_statement(imperative(invocation(function_id(I), Arguments)), Function_Names, Temp_Counter, Out, Temp_Counter_Out, []) :-
+transpile_imerative_statement(invocation(function_id(I), Arguments), Function_Names, Temp_Counter, Out, Temp_Counter_Out) :-
 	transpile_function_id_or_variable(I, Function_Names, Out1),
 	string_concat("apply_fun(", Out1, Out2),
 	string_concat(Out2, ",", Out3),
@@ -130,9 +139,6 @@ transpile_statement(imperative(invocation(function_id(I), Arguments)), Function_
 	string_concat(Out3, Out4, Out5),
 	string_concat(Out5, ",_)", Out6),
 	append(Statements_Out, [Out6], Out).
-
-transpile_statement(return(Expression), Function_Names, Temp_Counter, Statements_Out, Temp_Counter_Out, [Expression_Out]) :-
-	transpile_expression(Expression, Function_Names, Temp_Counter, Statements_Out, Expression_Out, Temp_Counter_Out).
 
 /***************
  * Expressions *
