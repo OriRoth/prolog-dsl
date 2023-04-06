@@ -3,45 +3,63 @@
 ]).
 :- use_module(parser).
 
+Process(P) :-
+  W -> Parse -> Tranpile -> Save -> Consult.
+
 /*************
  * Utilities *
  *************/
+cat(X,Y,Z):- string_concat(X,Y,Z).
 
-join([], _, "").
-join([String], _, String).
-join([String | Strings], Delimiter, Out) :-
-	string_concat(String, Delimiter, Out1),
-	join(Strings, Delimiter, Out2),
-	string_concat(Out1, Out2, Out).
+ToString(N) :- { number_string(N, S)} , S.
 
-function_name(Function_Id, Out) :-
-	string_concat("fun_", Function_Id, Out).
+Cat(X,Y) :- 
+  {
+    cat(X,Y,Z)
+  },
+  Z.
 
-temp_name(Temp_Number, Temp_Name) :-
-	number_string(Temp_Number, Temp_Number_String),
-	string_concat("TEMP", Temp_Number_String, Temp_Name).
+AsAtom(V) :- V -> Prepend "atom"-> Append "bar".
+AsTemp(N) :- N -> ToString -> Prepend "TEMP". 
+Wrap(V) :- V -> Prepend "("-> Append ")".
+
+Foo(X) :- AsAtom@ AsTemp@ X.
+
+SeparateBy(_,[], _) :- "".
+SeparateBy(_,[S], _) :- S.
+SeparateBy(D,[S | Ss]) :- 
+  S -> Append Delimiter,
+    -> Append SeparateBy(SS,D).
 
 /***********
  * Program *
  ***********/
 
-get_function_names([], []).
-get_function_names([definition(function_id(Name), _, _) | Ds], Out) :-
-	get_function_names(Ds, Out1),
-	append([Name], Out1, Out).
+Cons(X,L) :- { O = [X|L] }, O. 
+
+ExtractNames([]).
+ExtractNames([definition(function_id(Name), _, _) | Ds], Out) :-
+  ExtractNames Ds -> Prepend Name.
 
 transpile_program(program(Definitions), Out) :-
-	get_function_names(Definitions, Function_Names),
-	transpile_definitions(Definitions, Function_Names, Definitions_Out, Apply_Out),
-	join(Definitions_Out, "\n", Out1),
-	string_concat(Out1, "\n", Out2),
-	join(Apply_Out, "\n", Out3),
-	string_concat(Out2, Out3, Out).
+    {
+      Names = ExtractNames(Definitions),
+      (Definitions_Out, Apply_Out) 
+        = Transpile(Definitions, Names),
+    },
+    Cat(
+      (Definitions_Out 
+        -> SeparateBy "% Def \n" 
+        -> Prepend "% Automatically Generated Definitions \n"
+        -> Append "% END OF ======\n\n"
+      ),
+      (Apply_Out 
+        -> SeparateBy "\n" 
+        -> Prepend "% Automatically Generated Definitions \n"
+        -> Append "======\n\n"
+      )
+    ).
 
-transpile_to_prolog(W, Out) :-
-	parse(W, AST),
-	transpile_program(AST, Out),
-	!.
 
 /***************
  * Definitions *
@@ -58,41 +76,41 @@ transpile_variables([V], Out) :-
 	transpile_variable(V, Out).
 transpile_variables([V | Vs], Out) :-
 	transpile_variable(V, Out1),
-	string_concat(Out1, ",", Out2),
+	Cat(Out1, ",", Out2),
 	transpile_variables(Vs, Out3),
-	string_concat(Out2, Out3, Out).
+	Cat(Out2, Out3, Out).
 
 transpile_definition(definition(function_id(Name), Inputs, Body), Function_Names, Out, Apply_Out) :-
 	%
 	transpile_variables(Inputs, Out1),
-	string_concat(Out1, ",(", Out2),
+	Cat(Out1, ",(", Out2),
 	transpile_body(Body, Function_Names, Body_Out, Return_Vars),
-	join(Return_Vars, ",", Out3),
-	string_concat(Out2, Out3, Out4),
-	string_concat(Out4, "))", Out5),
+	SeparateBy(Return_Vars, ",", Out3),
+	Cat(Out2, Out3, Out4),
+	Cat(Out4, "))", Out5),
 	(Body_Out = "." ->
 		Out6 = Out5
 		;
-		string_concat(Out5, ":-", Out6)
+		Cat(Out5, ":-", Out6)
 	),
-	string_concat(Out6, Body_Out, Out7),
+	Cat(Out6, Body_Out, Out7),
 	%
 	function_name(Name, Function_Name),
-	string_concat(Function_Name, "(", Out8),
-	string_concat(Out8, Out7, Out),
+	Cat(Function_Name, "(", Out8),
+	Cat(Out8, Out7, Out),
 	%
-	string_concat("apply_fun(", Function_Name, Out9),
-	string_concat(Out9, ",", Out10),
-	string_concat(Out10, Out5, Out11),
-	string_concat(Out11, ":-", Out12),
-	string_concat(Out12, Out8, Out13),
-	string_concat(Out13, Out5, Out14),
-	string_concat(Out14, ".", Apply_Out).
+	Cat("apply_fun(", Function_Name, Out9),
+	Cat(Out9, ",", Out10),
+	Cat(Out10, Out5, Out11),
+	Cat(Out11, ":-", Out12),
+	Cat(Out12, Out8, Out13),
+	Cat(Out13, Out5, Out14),
+	Cat(Out14, ".", Apply_Out).
 
 transpile_body(Statements, Function_Names, Out, Return_Vars) :-
 	transpile_statements(Statements, Function_Names, 1, Out1, Return_Vars),
-	join(Out1, ",", Out2),
-	string_concat(Out2, ".", Out).
+	SeparateBy(Out1, ",", Out2),
+	Cat(Out2, ".", Out).
 
 /**************
  * Statements *
@@ -122,26 +140,26 @@ transpile_statement(imperative([S | Ss]), Function_Names, Temp_Counter, Out, Tem
 transpile_imerative_statement(prolog_id(I), _, Temp_Counter, [I], Temp_Counter).
 transpile_imerative_statement(assignment(Vs, X), Function_Names, Temp_Counter, Out, Temp_Counter_Out) :-
 	transpile_variables(Vs, Out1),
-	string_concat("(", Out1, Out2),
-	string_concat(Out2, ")=", Out3),
+	Cat("(", Out1, Out2),
+	Cat(Out2, ")=", Out3),
 	transpile_expression(X, Function_Names, Temp_Counter, Statements_Out, Expression_Out, Temp_Counter_Out),
-	string_concat(Out3, Expression_Out, Out4),
+	Cat(Out3, Expression_Out, Out4),
 	append(Statements_Out, [Out4], Out).
 transpile_imerative_statement(invocation(prolog_id(I), Arguments), Function_Names, Temp_Counter, Out, Temp_Counter_Out) :-
-	string_concat(I, "(", Out1),
+	Cat(I, "(", Out1),
 	transpile_expressions(Arguments, Function_Names, Temp_Counter, Statements_Out, Arguments_Out, Temp_Counter_Out),
-	join(Arguments_Out, ",", Out2),
-	string_concat(Out1, Out2, Out3),
-	string_concat(Out3, ")", Out4),
+	SeparateBy(Arguments_Out, ",", Out2),
+	Cat(Out1, Out2, Out3),
+	Cat(Out3, ")", Out4),
 	append(Statements_Out, [Out4], Out).
 transpile_imerative_statement(invocation(function_id(I), Arguments), Function_Names, Temp_Counter, Out, Temp_Counter_Out) :-
 	transpile_function_id_or_variable(I, Function_Names, Out1),
-	string_concat("apply_fun(", Out1, Out2),
-	string_concat(Out2, ",", Out3),
+	Cat("apply_fun(", Out1, Out2),
+	Cat(Out2, ",", Out3),
 	transpile_expressions(Arguments, Function_Names, Temp_Counter, Statements_Out, Arguments_Out, Temp_Counter_Out),
-	join(Arguments_Out, ",", Out4),
-	string_concat(Out3, Out4, Out5),
-	string_concat(Out5, ",_)", Out6),
+	SeparateBy(Arguments_Out, ",", Out4),
+	Cat(Out3, Out4, Out5),
+	Cat(Out5, ",_)", Out6),
 	append(Statements_Out, [Out6], Out).
 
 /***************
@@ -159,10 +177,10 @@ transpile_expressions([X | Xs], Function_Names, Temp_Counter, Statements_Out, [X
  **********************/
 
 transpile_expression(number(N), _, Temp_Counter, [], N_String, Temp_Counter) :-
-	number_string(N, N_String).
+	ToString(N, N_String).
 transpile_expression(string(S), _, Temp_Counter, [], Out, Temp_Counter) :-
-	string_concat("\"", S, Out1),
-	string_concat(Out1, "\"", Out).
+	Cat("\"", S, Out1),
+	Cat(Out1, "\"", Out).
 transpile_expression(prolog_id(I), _, Temp_Counter, [], I, Temp_Counter).
 transpile_expression(function_id(I), Function_Names, Temp_Counter, [], Out, Temp_Counter) :-
 	transpile_function_id_or_variable(I, Function_Names, Out).
@@ -175,25 +193,25 @@ transpile_expression(parenthesized(X), Function_Names, Temp_Counter, Statements_
 	transpile_expression(X, Function_Names, Temp_Counter, Statements_Out, Out, Temp_Counter_Out).
 transpile_expression(tuple(Xs), Function_Names, Temp_Counter, Statements_Out, Out, Temp_Counter_Out) :-
 	transpile_expressions(Xs, Function_Names, Temp_Counter, Statements_Out, Xs_Out, Temp_Counter_Out),
-	join(Xs_Out, ",", Out1),
-	string_concat("(", Out1, Out2),
-	string_concat(Out2, ")", Out).
+	SeparateBy(Xs_Out, ",", Out1),
+	Cat("(", Out1, Out2),
+	Cat(Out2, ")", Out).
 transpile_expression(invocation(prolog_id(I), Xs), Function_Names, Temp_Counter, Statements_Out, Out, Temp_Counter_Out) :-
 	transpile_expressions(Xs, Function_Names, Temp_Counter, Statements_Out, Xs_Out, Temp_Counter_Out),
-	string_concat(I, "(", Out1),
-	join(Xs_Out, ",", Out2),
-	string_concat(Out1, Out2, Out3),
-	string_concat(Out3, ")", Out).
+	Cat(I, "(", Out1),
+	SeparateBy(Xs_Out, ",", Out2),
+	Cat(Out1, Out2, Out3),
+	Cat(Out3, ")", Out).
 transpile_expression(invocation(function_id(I), Xs), Function_Names, Temp_Counter, Statements_Out, Temp_Name, Temp_Counter_Out) :-
 	transpile_function_id_or_variable(I, Function_Names, Function_Name),
-	string_concat("apply_fun(", Function_Name, Statement1),
-	string_concat(Statement1, ",", Statement2),
+	Cat("apply_fun(", Function_Name, Statement1),
+	Cat(Statement1, ",", Statement2),
 	transpile_expressions(Xs, Function_Names, Temp_Counter, Statements1, Xs_Out, Temp_Counter1),
-	join(Xs_Out, ",", Statement3),
-	string_concat(Statement2, Statement3, Statement4),
-	string_concat(Statement4, ",", Statement5),
+	SeparateBy(Xs_Out, ",", Statement3),
+	Cat(Statement2, Statement3, Statement4),
+	Cat(Statement4, ",", Statement5),
 	temp_name(Temp_Counter1, Temp_Name),
 	Temp_Counter_Out is Temp_Counter1 + 1,
-	string_concat(Statement5, Temp_Name, Statement6),
-	string_concat(Statement6, ")", Statement),
+	Cat(Statement5, Temp_Name, Statement6),
+	Cat(Statement6, ")", Statement),
 	append(Statements1, [Statement], Statements_Out).
