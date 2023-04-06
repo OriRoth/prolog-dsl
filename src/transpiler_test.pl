@@ -20,7 +20,8 @@ test(peano) :-
 	N0 = 0,
 	fun_Inc(N0, N1),
 	fun_Plus(N1, N1, N2),
-	fun_Plus(N2, N2, s(s(s(s(0))))).
+	fun_Plus(N2, N2, s(s(s(s(0))))),
+	!.
 
 test(church_numerals) :-
 	transpile_to_prolog("N0(_, X) :- X. Inc(N, F, X) :- F(N(F, X)). Plus(N, M, F, X) :- M(F, N(F, X)).", Prolog_Program),

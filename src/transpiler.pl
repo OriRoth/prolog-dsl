@@ -83,7 +83,11 @@ transpile_definition(definition(function_id(Name), Inputs, Body), Function_Names
 	%
 	string_concat("apply_fun(", Function_Name, Out9),
 	string_concat(Out9, ",", Out10),
-	string_concat(Out10, Out7, Apply_Out).
+	string_concat(Out10, Out5, Out11),
+	string_concat(Out11, ":-", Out12),
+	string_concat(Out12, Out8, Out13),
+	string_concat(Out13, Out5, Out14),
+	string_concat(Out14, ".", Apply_Out).
 
 transpile_body(Statements, Function_Names, Out, Return_Vars) :-
 	transpile_statements(Statements, Function_Names, 1, Out1, Return_Vars),
