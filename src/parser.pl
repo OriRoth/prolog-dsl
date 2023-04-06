@@ -1,4 +1,4 @@
-:- module(term, [
+ :- module(term, [
 	atomic_expression/3,
 	compound_expression/3,
 	expression/3,
@@ -9,6 +9,59 @@
 ]).
 :- use_module(lexer).
 
+parse(W, AST) :-
+	tokenize(W, Tokens),
+	phrase(program(AST), Tokens), !.
+
+% Tokens 
+'{' --> [operator("{")].
+'}' --> [operator("}")].
+'(' --> [operator("(")].
+')' --> [operator(")")].
+':-' --> [operator(":-")].
+'. ' --> [operator(".")].
+', ' --> [operator(",")].
+'= ' --> [operator("=")].
+'=>' --> [operator("=>")]. 
+
+% Plurals
+definitions([D]) --> definition(D).
+definitions([D | Ds]) --> definition(D), definitions(Ds).
+
+statements([S]) --> statement(S).
+statements([S | Ss]) --> statement(S), ', ' , statements(Ss).
+
+expressions([X]) --> expression(X).
+expressions([X | Xs]) --> expression(X), ", ", expressions(Xs).
+
+% expression tuple vs parenthesized expression
+tuple(tuple([X|Xs])) --> "(", expression(X), ", ", expressions(Xs), ")".  % A tuple has two or more expressions
+parenthesized(X) --> "(", expression(X), ")".                             % Exactly one expression
+
+% slot (a single variable) vs slots (a possible compound set of variables) 
+pattern(P) --> slot(P).
+pattern(P) --> slots(P).
+slots(slots([X | Xs])) --> "(", slot(X), ", ", slots(Xs), ")".  % Slots have two or inner slots 
+slot(V) --> "(", slot(V), ")".                                  % Parenthesize slots has exactly one slot. 
+slot(V) --> variable(V).                                        % Parentheses are optional
+
+
+
+% Program
+program(program(Ds)) --> definitions(Ds).
+
+ % definition 
+definition(definition(Name, Pattern, Body)) --> header(Name, Pattern), body(Body).
+
+% header
+header(Name, Pattern) --> variable(Name), pattern(Pattern).
+
+% body
+body(Body) --> ':-', statements(Body), '. '.
+statement(Ss) --> imperative_block(Ss).
+statement(S) --> return_statement(S).
+return_statement(return(E)) --> expression(E).
+
 /**********************
  * Atomic Expressions *
  **********************/
@@ -17,7 +70,6 @@ literal(number(N)) --> [number(N)].
 literal(string(N)) --> [string(N)].
 literal(prolog_id(I)) --> [prolog_id(I)].
 
-variable(function_id(I)) --> [function_id(I)].
 
 atomic_expression(X) --> literal(X).
 atomic_expression(X) --> variable(X).
@@ -27,27 +79,10 @@ atomic_expression(X) --> variable(X).
  ************************/
 
 invocation(invocation(prolog_id(I), Xs)) -->
-	[prolog_id(I)],
-	[operator("(")],
-	expressions(Xs),
-	[operator(")")].
+	[prolog_id(I)],"(", expressions(Xs), ")".
 invocation(invocation(V, Xs)) -->
-	variable(V),
-	[operator("(")],
-	expressions(Xs),
-	[operator(")")].
+	variable(V), "(", expressions(Xs), ")".
 
-parenthesized(X) -->
-	[operator("(")],
-	expression(X),
-	[operator(")")].
-
-tuple(tuple([X | Xs])) -->
-	[operator("(")],
-	expression(X),
-	[operator(",")],
-	expressions(Xs),
-	[operator(")")].
 
 compound_expression(X) --> invocation(X).
 compound_expression(X) --> parenthesized(X).
@@ -60,32 +95,6 @@ compound_expression(X) --> tuple(X).
 expression(X) --> atomic_expression(X).
 expression(X) --> compound_expression(X).
 
-expressions([X]) --> expression(X).
-expressions([X | Xs]) -->
-	expression(X),
-	[operator(",")],
-	expressions(Xs).
-
-/**************
- * Statements *
- **************/
-
-variables([V]) --> variable(V).
-variables([V | Vs]) -->
-	variable(V),
-	[operator(",")],
-	variables(Vs).
-
-assignment(assignment([V], X)) -->
-	variable(V),
-	[operator("=")],
-	expression(X).
-assignment(assignment(Vs, X)) -->
-	[operator("(")],
-	variables(Vs),
-	[operator(")")],
-	[operator("=")],
-	expression(X).
 
 imperative_statement(prolog_id(I)) --> [prolog_id(I)].
 imperative_statement(I) --> invocation(I).
@@ -94,49 +103,9 @@ imperative_statement(A) --> assignment(A).
 imperative_statements([S]) --> imperative_statement(S).
 imperative_statements([S | Ss]) -->
 	imperative_statement(S),
-	[operator(",")],
+	", ",
 	imperative_statements(Ss).
 
-imperative_block(imperative(Ss)) -->
-	[operator("{")],
-	imperative_statements(Ss),
-	[operator("}")].
+imperative_block(imperative(Ss)) --> "{", imperative_statements(Ss), "}".
 
-return_statement(return(E)) --> expression(E).
-
-statement(Ss) --> imperative_block(Ss).
-statement(S) --> return_statement(S).
-
-statements([S]) --> statement(S).
-statements([S | Ss]) -->
-	statement(S),
-	[operator(",")],
-	statements(Ss).
-
-/***************
- * Definitions *
- ***************/
-
-definition(definition(Name, Inputs, Body)) -->
-	variable(Name),
-	[operator("(")],
-	variables(Inputs),
-	[operator(")")],
-	[operator(":-")],
-	statements(Body),
-	[operator(".")].
-
-/***********
- * Program *
- ***********/
-
-definitions([D]) --> definition(D).
-definitions([D | Ds]) -->
-	definition(D),
-	definitions(Ds).
-
-program(program(Ds)) --> definitions(Ds).
-
-parse(W, AST) :-
-	tokenize(W, Tokens),
-	phrase(program(AST), Tokens), !.
+assignment(assignment(Vs, X)) --> pattern, "=", expression(X).

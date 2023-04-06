@@ -10,6 +10,25 @@
 	tokenize/2
 ]).
 
+% Operators *
+operator(operator("(")) --> ['('].
+operator(operator(")")) --> [')'].
+operator(operator("{")) --> ['{'].
+operator(operator("}")) --> ['}'].
+operator(operator(":-")) --> [':'], ['-'].
+operator(operator(".")) --> ['.'].
+operator(operator(",")) --> [','].
+operator(operator("=")) --> ['='].
+
+prolog_id(prolog_id(Identifier)) --> sequence(Chars),
+	{
+		Chars = [First | Rest],
+		char_type(First, prolog_atom_start),
+		str_type(Rest, prolog_identifier_continue),
+		string_chars(Identifier, Chars)
+	}.
+
+
 /*************
  * Utilities *
  *************/
@@ -30,9 +49,7 @@ str_type([First | Rest], Type) :-
 	char_type(First, Type),
 	str_type(Rest, Type).
 
-/*********
- * Skips *
- *********/
+% Skips 
  
 white_space --> ([' '] | ['\t'] | ['\n']).
 
@@ -45,19 +62,6 @@ comment --> ['/', '*'], sequence(Comment_Content), ['*', '/'],
 skip --> [].
 skip --> (white_space | comment), skip.
 skip_non_empty --> (white_space | comment), skip.
-
-/*************
- * Operators *
- *************/
- 
-operator(operator("(")) --> ['('].
-operator(operator(")")) --> [')'].
-operator(operator("{")) --> ['{'].
-operator(operator("}")) --> ['}'].
-operator(operator(":-")) --> [':'], ['-'].
-operator(operator(".")) --> ['.'].
-operator(operator(",")) --> [','].
-operator(operator("=")) --> ['='].
 
 /************
  * Literals *
@@ -85,14 +89,6 @@ function_id(function_id(Identifier)) --> sequence(Chars),
 	{
 		Chars = [First | Rest],
 		char_type(First, prolog_var_start),
-		str_type(Rest, prolog_identifier_continue),
-		string_chars(Identifier, Chars)
-	}.
-
-prolog_id(prolog_id(Identifier)) --> sequence(Chars),
-	{
-		Chars = [First | Rest],
-		char_type(First, prolog_atom_start),
 		str_type(Rest, prolog_identifier_continue),
 		string_chars(Identifier, Chars)
 	}.
