@@ -39,4 +39,51 @@ test(church_booleans) :-
 	fun_Or(fun_F, fun_F, fun_F),
 	!.
 
+test(trits) :-
+  atomic_list_concat([
+    "True(X, _,_) :- X." ,
+    "False(_, X,_) :- X. ",
+    "Error(_,_,X) :- X. ",
+    "Not(Trit) :- Trit(False, True,Error).",
+    "Or(A, B) :- A(True, B, Error). ",
+    "And(A, B) :- A(B, False, Error)." ,
+    "Twice(X) :- cons(False,X).",
+    "Increase(X) :- cons(True,X).",
+    "Zero(X) :- cons(Error,Error).",
+    "Zero_0(X) :- Twice(Zero(X)).",
+    "Zero_1(X) :- Twice(Zero_0(X)).",
+    "Zero_2(X) :- Twice(Zero_1(X)).",
+    "Zero_3(X) :- Twice(Zero_2(X)).",
+    "Zero_4(X) :- Twice(Zero_3(X)).",
+    "One(X) :- cons(True,Zero(X)).",
+    "Two(X) :- Twice(One(X)).",
+    "Three(X) :- Increase(One(X)).",
+    "Four(X) :- Twice(Two(X)).",
+    "Five(X) :- Increase(Two(X)).",
+    "Increment(List) :-",
+        {
+          (Head, Rest) = List
+        },
+          Head(
+            (False, Increment(Rest)),    
+            (True,Rest),
+            One
+          ).
+      ]
+    )
+
+  transpile_to_prolog(
+
+Prolog_Program),
+	compile_prolog(Prolog_Program),
+	fun_T(1, 2, 1),
+	fun_F(1, 2, 2),
+	fun_Not(fun_T, fun_F),
+	fun_And(fun_T, fun_T, fun_T),
+	fun_And(fun_T, fun_F, fun_F),
+	fun_Or(fun_T, fun_F, fun_T),
+	fun_Or(fun_F, fun_F, fun_F),
+	!.
+
+:
 :- end_tests(transpiler).
