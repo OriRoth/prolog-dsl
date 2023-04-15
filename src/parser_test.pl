@@ -5,6 +5,7 @@
 parse_atomic_expression(W, AST) :-
 	tokenize(W, Tokens),
 	phrase(atomic_expression(AST), Tokens).
+
 test(atomic_expression) :-
 	parse_atomic_expression("0", number(0)),
 	parse_atomic_expression("0.1", number(0.1)),
