@@ -1,88 +1,69 @@
 :- module(lexer, [
-	white/2,
-	comment/2,
-	skip/2,
-	operator/3,
+	tokenize/2,
 	number/3,
 	string/3,
-	tuple_id/3,
-	predicate_id/3,
-	variable_id/3,
-	tokenize/2
+	tupletor/3,
+	functor/3,
+	variable/3
 ]).
 
-tokenize(Stream, Tokens) :-
-	string_chars(W, Characters),
-	phrase(tokens(Tokens), Characters), 
-  !.
+tokenize(Stream, Tokens) :- string_chars(Stream, Characters), phrase(tokens(Tokens), Characters), !.
 
-tokens([])          -->  skip.                                         
-tokens([T|Ts])      -->  skip,  operator(T),            tokens(Ts).    
-tokens([T])         -->  skip,  token_no_operator(T).                  
-tokens([T|Ts])      -->  skip,  token_no_operator(T),   skip,          tokens(Ts).
-tokens([T1,T2|Ts])  -->  skip,  token_no_operator(T1),  operator(T2),  tokens(Ts).
+tokens([])          -->  skip.                
+tokens([T])         -->  skip,  token(T).     
+tokens([T1,T2|Ts])  -->  skip,  pair(T1,T2),  tokens(Ts).
 
-skip   -->  '';      (white|comment),skip.                
-white  -->  '\x20';  '\t'; '\n';  '\f';  '\r'.
-comment --> '/*',sequence(Contents),'*/',
-	{
-		str_type(Contents, ascii),
-		\+ occurs('*/', Contents)
-	}.
 
+token(T)       -->  literal(T)  |  identifier(T).     
+literal(L)     -->  number(L)   |  string(L).         
+identifier(I)  -->  functor(I)  |  variable(I)     |  tupletor(I).
+
+
+comment  -->  '/*',!,sequence(Contents),'*/',  {str_type(Contents,ascii),  \+occurs('*/',Contents)}
+/**/     |    '%',sequence(_),newline.                                     
+skip     -->  ''                                                           
+/**/     |    (white|comment),skip.                                        
+
+white    -->  space     |  newline   |  blank  |  tab.
+space    -->  '\x20' .                             
+tab      -->  '\t' .                               
+blank    -->  '\f'      |  '\v'.                  
+newline  -->  '\r\n',!  |  '\n\r',!  |  '\n'   |  '\r'.
+
+arithmetical  -->  '+'   |  '-'  |  '*'   |  '/'.                      
+comparisonal  -->  '<'   |  '>'  |  '='.                               
+punctualtion  -->  ':'   |  '.'  |  ','   |  '?'   |  ';'.             
+programming   -->  '^'   |  '‘'  |  '~'   |  '@'   |  '#'   |  '$'  |  '&'.
+backslash     -->  '\\'  .                                             
 
 % Operators *
-operator(operator("(")) --> ['('].
-operator(operator(")")) --> [')'].
-operator(operator("{")) --> ['{'].
-operator(operator("}")) --> ['}'].
-operator(operator(":-")) --> [':'], ['-'].
-operator(operator(".")) --> ['.'].
-operator(operator(",")) --> [','].
-operator(operator("=")) --> ['='].
+operator(operator("("))   -->  ['('].  
+operator(operator(")"))   -->  [')'].  
+operator(operator("{"))   -->  ['{'].  
+operator(operator("}"))   -->  ['}'].  
+operator(operator(":-"))  -->  [':'],  ['-'].
+operator(operator("."))   -->  ['.'].  
+operator(operator(","))   -->  [','].  
+operator(operator("="))   -->  ['='].  
 
 /***************
  * Identifiers *
  ***************/
-function_id(function_id(Identifier)) --> sequence(Characters),
-	{
-		Characters = [First | Rest],
-		char_type(First, prolog_var_start),
-		str_type(Rest, prolog_identifier_continue),
-		string_chars(Identifier, Characters)
-	}.
+functor(functor(Id))    -->  lower(First),!,    rest(Rest),  {string_chars(Id,[First|Rest])}.
+variable(variable(Id))  -->  upper(First),!,    rest(Rest),  {string_chars(Id,[First|Rest])}.
+tupletor(tupletor(Id))  -->  special(First),!,  rest(Rest),  {string_chars(Id,[First|Rest])}.
 
-tuple_id(tuple_id(Identifier)) --> sequence(Characters),
-	{
-		Characters = ['#' | Rest],
-		char_type(First, prolog_atom_start),
-		str_type(Rest, prolog_identifier_continue),
-		string_chars(Identifier, Characters)
-	}.
-
-prolog_id(prolog_id(Identifier)) --> sequence(Characters),
-	{
-		Characters = [First | Rest],
-		char_type(First, prolog_atom_start),
-		str_type(Rest, prolog_identifier_continue),
-		string_chars(Identifier, Characters)
-	}.
-
+lower(C)    -->  C,  char_type(C,prolog_atom_start),  !.
+upper(C)    -->  C,  char_type(C,prolog_var_start),   !.
+special(C)  -->  C,  C='#',                           !.
 
 /*************
  * Utilities *
  *************/
 
-sequence([]) --> [].
-sequence([E | Es]) --> [E], sequence(Es).
-
-starts_with([], _).
-starts_with([C | Ys], [C | String_Rest]) :-
-	starts_with(Sub_Rest, String_Rest), !.
-starts_with(Sub, [_ | String_Rest]) :- starts_with(Sub, String_Rest), !.
-
-occurs(Sub, Str) :- starts_with(Sub, Str), !.
-occurs(Sub, [_, Str]) :- occurs(Sub, Str), !.
+sequence(L)          -->  L=[]                     ;  L=[E|Es],[E],   sequence(Es).          
+prefix(Prefix,Text)  :-   append(Prefix,_,Text),!  .                                         
+occurs(Search,Text)  :-   prefix(Search,Text),!    ;  Text=[_,Rest],  occurs(Search,Rest),!  .
 
 str_type([], _).
 str_type([First | Rest], Type) :-
@@ -96,28 +77,14 @@ str_type([First | Rest], Type) :-
  * Literals *
  ************/
 
-number(number(Number)) --> sequence(Characters),
-	{
-		string_chars(String, Characters),
-		number_string(Number, String)
-	}.
+number(number(Number)) --> sequence(Characters), {string_chars(String,Characters),number_string(Number, String)}.
 
-string(string(String)) --> ['"'], sequence(Characters), ['"'],
+string(string(String)) --> ['"'], sequence(Contents), ['"'],
 	{
-		str_type(Characters, ascii),
-		\+ occurs(['"'], Characters),
-		\+ occurs(['\n'], Characters),
-		string_chars(String, Characters)
+		str_type(Contents, ascii),
+		\+ occurs(['"'], Contents),
+		\+ occurs(['\n'], Contents),
+		string_chars(String, Contents)
 	}.
-
-/**********
- * Tokens *
- **********/
- 
-token_no_operator(T) -->
-	  number(T)
-	| string(T)
-	| function_id(T)
-	| prolog_id(T).
 
 
