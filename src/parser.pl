@@ -79,10 +79,11 @@ assignment(a(Pattern, X))       --> pattern(Pattern),':=',expression(X).
 #compile FileName :-
 	FileName,
 	SymbolTable,
-	#prolog AST SymbolTable,
-	#sml AST SymbolTable,
+	#prolog AST SymbolTable ^ ERROR,
+	#sml AST SymbolTable ^ ERROR,
 	{ SymbolTable := #weave AST,
-	  AST := #read FileName => #lex => #parse }.
+	  AST := (#read FileName) ^ ERROR
+	  => #lex ^ ERROR => #parse ^ ERROR }.
 
 #solve(A, B, C) :-
 	{ Delta := #subtract (#square B, #mul 4 A C) },
@@ -99,6 +100,71 @@ assignment(a(Pattern, X))       --> pattern(Pattern),':=',expression(X).
 	#div2A X :- #div X TwoA,
 	#div2A2 X Y :- X => #div2A, #dic2A Y,
 	{ Solutions := #div2A2 (#plus NegB Delta) (#minus NegB Delta) }.
+
+#compile(FileName) :- (FileName, SymbolTable, PrologProgram, SMLProgram),
+	{
+		Contents := #read FileName,
+		Tokens := #lex Contents,
+		AST := #parse Tokens,
+		SymbolTable := #weave AST,
+		PrologProgram := #prolog AST SymbolTable,
+		SMLProgram := #sml AST SymbolTable
+	}.
+
+#compile(FileName) :- (FileName, SymbolTable, PrologProgram, SMLProgram),
+	{
+		Contents := #read FileName,
+		Tokens, Vocabulary := #lex Contents,
+		(Tokens, Vocabulary) := #lex Contents,
+		(Tokens Vocabulary) := #lex Contents,
+		Tokens Vocabulary := #lex Contents,
+		#inspect Tokens Vocabulary,
+		AST := #parse Tokens,
+		SymbolTable := #weave AST,
+		PrologProgram := #prolog AST SymbolTable,
+		SMLProgram := #sml AST SymbolTable
+	}.
+
+#insights Tokens Vocabulary :- (),
+	{
+		
+	}.
+
+#inspect Tokens Vocabulary :- ()
+	{
+		#lt (#len Vocabulary) 50 : #throw ERROR
+	}.
+
+#inspect Tokens Vocabulary :- { #lt (#len Vocabulary) 50 : #throw ERROR }.
+
+#inspect Tokens Vocabulary :- #lt (#len Vocabulary) 50 : #throw ERROR.
+
+#compile(FileName) :-
+	(
+		FileName,
+		SymbolTable,
+		PrologProgram,
+		SMLProgram
+	), {
+		Contents := #read FileName,
+		#lex Contents,
+		#inspect @Tokens @Vocabulary,
+		#insights @Vocabulary,
+		AST := #parse Tokens,
+		SymbolTable := #weave AST,
+		PrologProgram := #prolog AST SymbolTable,
+		SMLProgram := #sml AST SymbolTable
+	}.
+
+#insights Vocabulary :- { AverageTokenLength := #div (#reduce 0 #plus Vocabulary) (#len Vocabulary) }.
+
+#insights _ :- { AverageTokenLength := #div (#reduce 0 #plus &) (#len &) }.
+
+#insights _ _ :- { AverageTokenLength := #div (#reduce 0 #plus #1) (#len #2) }.
+
+#insights (_, _) :- { AverageTokenLength := #div (#reduce 0 #plus #1) (#len #2) }.
+
+#foo (_, (A, _)) :- { #bar #1, #bar A, #bar #2#1 }.
 
  */
 
