@@ -121,7 +121,6 @@ filter([I|Is])          -->  invocation(I),'=>',filter(Is).
 invocation(invocation(Name, Parameters)) --> name(Name), expression(Parameters).
 % #foo (a, A, #add(B, #times C 2))
 % #take 2 apples
-% #open "file.txt" for reading => #read => #lex => #parse => #transpile prolog.
 
 % slot (a single variable) vs slots (a possible compound set of variables) 
 pattern(V)  --> variable(V).
