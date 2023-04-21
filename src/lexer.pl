@@ -14,16 +14,21 @@ tokens([T])         -->  skip,  token(T).
 tokens([T1,T2|Ts])  -->  skip,  pair(T1,T2),  tokens(Ts).
 
 token(T)         -->  identifier(T)    |  literal(T)    |  punctuation(T).
-punctuation(T)   -->  ligature(T),!    |  unit(T).         
-literal(L)       -->  number(L)        |  string(L).       
+punctuation(T)   -->  ligature(T),!    |  singleton(T).
+literal(L)       -->  number(L)        |  string(L).
 identifier(I)    -->  alphanumeric(I)  |  symbolic(I).     
 alphanumeric(I)  -->  variable(I)      |  functor(I)    |  tupletor(I).
 
+arithmetical  -->  '+'   |  '-'  |  '*'   |  '/'.
+comparisonal  -->  '<'   |  '>'  |  '='.
+singleton(C)  -->  character(C, ":.,?|").
+ligature(L)   -->  ":-".
+programming   -->  '^'   |  '‘'  |  '~'   |  '@'   |  '#'   |  '$'  |  '&'.
+backslash     -->  '\\'  .
 
-ligature(L) --> ':
 comment  -->  '/*',!,sequence(Contents),'*/',  {str_type(Contents,ascii),  \+occurs('*/',Contents)}
 /**/     |    '%',sequence(_),newline.                                     
-skip     -->  (white|comment),skip                                         
+skip     -->  (white|comment),!,skip                                         
 /**      or   */                               |                           ''.
 
 white    -->  space     |  newline   |  blank  |  tab.
@@ -31,12 +36,6 @@ space    -->  '\x20' .
 tab      -->  '\t' .
 blank    -->  '\f'      |  '\v'.
 newline  -->  '\r\n',!  |  '\n\r',!  |  '\n'   |  '\r'.
-
-arithmetical  -->  '+'   |  '-'  |  '*'   |  '/'.
-comparisonal  -->  '<'   |  '>'  |  '='.
-punctualtion  -->  ':'   |  '.'  |  ','   |  '?'   |  '|'.
-programming   -->  '^'   |  '‘'  |  '~'   |  '@'   |  '#'   |  '$'  |  '&'.
-backslash     -->  '\\'  .
 
 % Operators *
 operator(operator("("))   -->  ['('].
