@@ -114,8 +114,10 @@ assignment(a(Pattern, X))       --> pattern(Pattern),':=',expression(X).
 	}.
 
 #compile(FileName) :- (FileName, SymbolTable, PrologProgram, SMLProgram),
+  A := #foo 2 3,
+  #b := #foo 2 3,
 	{
-		Contents := #read FileName,
+		#Contents := #read FileName,
 		Tokens, Vocabulary := #lex Contents,
 		(Tokens, Vocabulary) := #lex Contents,
 		(Tokens Vocabulary) := #lex Contents,

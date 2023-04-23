@@ -36,3 +36,20 @@
     #rest :- #plus_ Rest1 Rest2 (HasC ? #T : #F)
   }
   B1 ^ N2 ?: B2 ^ N1 ?: (B,#rest).
+                T   F E
+  (a > b ? a) | a  | F | E 
+  : b         | a  | b | E
+
+  if a>b is false, it returns b.
+
+  ^
+  :
+  ?
+  ^?
+  ^:
+  :^
+  :?
+  ?^
+  ?:
+
+
