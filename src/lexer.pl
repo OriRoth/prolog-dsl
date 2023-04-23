@@ -3,7 +3,7 @@
 	number/3,
 	string/3,
 	tupletor/3,
-	functor/3,
+	predicate/3,
 	variable/3
 ]).
 
@@ -17,12 +17,12 @@ token(T)         -->  identifier(T)    |  literal(T)    |  punctuation(T).
 punctuation(T)   -->  ligature(T),!    |  singleton(T).
 literal(L)       -->  number(L)        |  string(L).
 identifier(I)    -->  alphanumeric(I)  |  symbolic(I).     
-alphanumeric(I)  -->  variable(I)      |  functor(I)    |  tupletor(I).
+alphanumeric(I)  -->  variable(I)      |  predicate(I)    |  tupletor(I).
 
 arithmetical  -->  '+'   |  '-'  |  '*'   |  '/'.
 comparisonal  -->  '<'   |  '>'  |  '='.
 singleton(C)  -->  character(C, ":.,?|").
-ligature(L)   -->  ":-".
+ligature(L)   -->  ":-", L=":-".
 programming   -->  '^'   |  '‘'  |  '~'   |  '@'   |  '#'   |  '$'  |  '&'.
 backslash     -->  '\\'  .
 
@@ -48,21 +48,16 @@ operator(operator(","))   -->  [','].
 operator(operator("="))   -->  ['='].
 
 % Identifiers *
-functor(functor(Id))    -->  functorStart(First),!,   continue(First,Id).
-variable(variable(Id))  -->  variableStart(First),!,  continue(First,Id).
-tupletor(tupletor(Id))  -->  tupletorStart(First),!,  continue(First,Id).
+predicate(predicate(Id))   -->  predicateStart(First),!,  continue(First,Id).                     
+variable(variable(Id))     -->  variableStart(First),!,   continue(First,Id).                     
+tupletor(tupletor(Id))     -->  tupletorStart(First),!,   continue(First,Id).                     
+predicateStart(Character)  -->  Character,                char_type(C,prolog_atom_start),         !.
+variableStart(Character)   -->  Character,                char_type(Character,prolog_var_start),  !.
+tupletorStart(Character)   -->  Character,                Character='#',                          !.
+continue(First,Id)         -->  rest(Rest),               {compose(First,Rest,Id)}.               
+rest(Rest)                 -->  Character,                alphanumeric(Character),!,Rest=[Character,R],       rest(R)
+/**/                       |    [].                                                               
 
-continue(First,Id) --> {compose(First,Rest,Id)}.
-
-compose(First,Start,Identifier) :- string_chars(Identifier, [First|Rest]).
-
-functorStart(C)   -->  C,  char_type(C,prolog_atom_start),  !.
-variableStart(C)  -->  C,  char_type(C,prolog_var_start),   !.
-tupletorStart(C)  -->  C,  C='#',                           !.
-
-rest(Rest)        -->  C, continue(C),!,Rest=[C,R],  rest(R)                          |   [];
-
-continue(C),
 
 /*************
  * Utilities *
@@ -78,7 +73,6 @@ str_type([First | Rest], Type) :-
 	str_type(Rest, Type).
 
 % Skips
-
 
 number(number(Number)) --> sequence(Characters), {string_chars(String,Characters),number_string(Number, String)}.
 string(string(String)) --> ['"'], sequence(Contents), ['"'],

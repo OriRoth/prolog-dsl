@@ -1,4 +1,4 @@
- :- module(term, [
+:- module(term, [
 	parse/2,
 	program/3,
 	tupler/3,
@@ -15,7 +15,7 @@ any(L)        :-  L  =  _.
 empty(L)      :-  L  =  [].
 one(L)        :-  L  =  [_].
 two(L)        :-  L  =  [_,_].
-not_empty(L)  :-  L  =  [_|_].
+exists(L)  :-  L  =  [_|_].
 three(L)      :-  L  =  [_,_,_,_].
 four(L)       :-  L  =  [_,_,_,_,_].
 
@@ -24,41 +24,43 @@ tuplers(Tuplers)        -->  tupler(T),!,tuplers(Ts),             Tuplers=[T|Ts]
 parameters(Parameters)  -->  parameter(P),!,',',parameters(Ps),  Parameters=[P|Ps]; '',  Parameters=[].
 components(Components)  -->  component(C),!,',',components(Cs),  Components=[C|Cs]; '',  Components=[].
 
-% A list of tuplers comprises a program. A tupler is a triple compirsed by
-% name, parameters, and body. The body is a tuple of zero or more expressions
-% to be computed and retuned as a tuple when the tupler is invoked on specific
-% values of the parameters. 
-program(Tuplers)                -->  tuplers(Tuplers).                      
-tupler((Name,Parameters,Body))  -->  header(Name,Parameters),               body(Body).
-header(Name,Parameters)         -->  tupletor(Name),                        parameters(Parameters).
-body(Return)                    -->  ':-',components(Cs),'.',               assemble(Cs,Return)
-                                  |  '.', {unit(Return)}.
+% A list of tuplers comprises a program. A tupler is a triple of tuple name,
+% tuple parameters, and tuple body. The body is a tuple of zero or more
+% expressions to be computed and when the tupler is invoked on specific
+% arguments, that is run time values of the parameters. 
+program(Tuplers)                -->  tuplers(Tuplers).         
+tupler((Name,Parameters,Body))  -->  header(Name,Parameters),  body(Body).
+header(Name,Parameters)         -->  tupletor(Name),           parameters(Parameters).
+body(Return)                    -->  ':-',components(Cs),'.',  assemble(Cs,Return)
+/**/                            |    '.',                      {unit(Return)}.
 
-% A tuple is a pair of constituents and auxiliaries. Both elements two possibly
-% empty lists, the elements and the body. A tuple is nullaryItems of both lists
+% A tuple is a pair of <em>Entries</em> and <em>auxiliaries</em>. Both
+% are lists of , the Entries and the body. A tuple is
+% nullaryItems of both lists
 % may be either components or other tuples. 
 %
-% The first list is of the tuple <em>elements</em>. The other list is of
-% <em>hidden</em> tuples, which are not part of the values comprising the
+% The first list is of the tuple <em>Entries</em>. The other list is of
+% <em>Auxiliary</em> tuples, which are not part of the values comprising the
 % tuple, but are computed (collaterally) as part of the computation of the
 % tuple.
 
 % Tuples come in different varieties.
-unit(I)       :-  I=t(Elements,Hidden),  empty(Elements),  empty(Hidden).
-procedure(P)  :-  P=t(Elements,Hidden),  empty(Elements),  not_empty(Hidden).
-singleton(S)  :-  S=t(Elements,Hidden),  one(Elements),    empty(Hidden).
-function(F)   :-  F=t(Elements,Hidden),  one(Elements),    not_empty(Hidden).
-pair(S)       :-  S=t(Elements,Hidden),  two(Elements),    empty(Hidden).
-triple(T)     :-  T=t(Elements,Hidden),  three(Elements),  empty(Hidden).
+unit(I)       :-  I=t(Entries,Auxiliary),  empty(Entries),  empty(Auxiliary).
+procedure(P)  :-  P=t(Entries,Auxiliary),  empty(Entries),  exists(Auxiliary).
+singleton(S)  :-  S=t(Entries,Auxiliary),  one(Entries),    empty(Auxiliary).
+function(F)   :-  F=t(Entries,Auxiliary),  one(Entries),    exists(Auxiliary).
+pair(S)       :-  S=t(Entries,Auxiliary),  two(Entries),    empty(Auxiliary).
+triple(T)     :-  T=t(Entries,Auxiliary),  three(Entries),  empty(Auxiliary).
 
-tuple(t(Elements,Hidden))   -->  tuple(Elements,Hidden). %tuple/1
-tuple(Elements,Hidden)      -->  '{',components(Cs),'}',   Elements=Cs,              Hidden=[] % tuple/2
-                              |  '(',components(Cs),')',   assemble(Cs,Tuple), Tuple=t(Elements, Hidden).
-assemble(Components,Tuple)  :-   classify(Components,Elements,Hidden),  Tuple=(Elements,Hidden).
+% tuple/1 forwards to tuple/2
+Tuple(t(Entries,Auxiliary))  -->  tuple(Entries,Auxiliary).                                         
+tuple(Entries,Auxiliary)     -->  '{',components(Cs),'}',      (Entries,Auxiliary)=(Cs,[])
+/**/                         |    '(',components(Cs),')',      {assemble(Cs,(Entries,Auxiliary))}.  
+assemble(Components,Tuple)   :-   classify(Components,Es,As),  Tuple=(Es,As).                       
 
 
 % An expression is either a tuple, or a component.
-expression(t(Elements,Hidden))  -->  tuple(Elements,Hidden).
+expression(t(Entries,Auxiliary))  -->  tuple(Entries,Auxiliary).
 expression(c(C))                -->  component(C).
 
 assignment(a(Pattern, X))       --> pattern(Pattern),':=',expression(X).
